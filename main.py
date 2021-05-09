@@ -64,7 +64,7 @@ def print_dataset_sample(is_train):
     plt.figure(figsize=(15, 15))
     for i in range(25):
         plt.subplot(5, 5, i + 1)
-        plt.imshow(dataset[i]['image'].reshape(IMAGE_SIZE, IMAGE_SIZE))
+        plt.imshow(dataset[i]['image'].cpu().reshape(IMAGE_SIZE, IMAGE_SIZE))
         plt.title(dataset[i]['label'])
         plt.axis('off')
     # plt.subplots_adjust(wspace=0.0, hspace=0.1)
@@ -121,8 +121,8 @@ class Trainer:
                 self.train_dataloader)
             test_accuracy = self.evaluate_accuracy_on_dataset(
                 self.test_dataloader)
-            print(f"Epoch # {epoch} : Train accuracy: {train_accuracy:.3f}, "
-                  f"Test accuracy: {test_accuracy:.3f}")
+            print(f"Epoch # {epoch} : Train accuracy: {train_accuracy:.3f}[%],"
+                  f" Test accuracy: {test_accuracy:.3f}[%]")
 
     def evaluate_accuracy_on_dataset(self, dataloader):
         correct = 0
@@ -185,7 +185,7 @@ def check_if_pixel_can_be_adversarial(model, image, true_label,
     with torch.no_grad():
         outputs = model(image_tensor)
     _, predictions = torch.max(outputs.data, 1)
-    return torch.any(predictions != true_label).item()
+    return torch.any(predictions != true_label).item() == 1
 
 
 def get_pixel_new_value_and_label(model, image, true_label, pixel_to_change):
@@ -207,11 +207,13 @@ def get_pixel_new_value_and_label(model, image, true_label, pixel_to_change):
 def create_adversarial_example(model, image, true_label, seed=999):
     model.eval()
     torch.manual_seed(seed)
-    for _ in range(IMAGE_SIZE * IMAGE_SIZE):
-        pixel_to_change = int(torch.randint(IMAGE_SIZE * IMAGE_SIZE, (1,)))
+    pixel_to_change = int(torch.randint(IMAGE_SIZE * IMAGE_SIZE, (1,)))
+    while True:
         if check_if_pixel_can_be_adversarial(model, image, true_label,
                                              pixel_to_change):
             break
+        else:
+            pixel_to_change = int(torch.randint(IMAGE_SIZE * IMAGE_SIZE, (1,)))
     new_value, new_label = get_pixel_new_value_and_label(model,
                                                          image,
                                                          true_label,
@@ -229,8 +231,8 @@ def log_and_get_adversarial_example(model, image, label, seed):
           f"{previous_value:.2f} to {new_value:.3f}, and label from {label} to"
           f" {new_label}")
     fig, axes = plt.subplots(1, 2)
-    axes[0].imshow(image.reshape(IMAGE_SIZE, IMAGE_SIZE))
-    axes[1].imshow(adversarial_example.reshape(IMAGE_SIZE, IMAGE_SIZE))
+    axes[0].imshow(image.cpu().reshape(IMAGE_SIZE, IMAGE_SIZE))
+    axes[1].imshow(adversarial_example.cpu().reshape(IMAGE_SIZE, IMAGE_SIZE))
     axes[0].set_title('Original image')
     axes[1].set_title('Manipulated image')
     row, col = manipulated_pixel_index // IMAGE_SIZE, manipulated_pixel_index \
@@ -244,16 +246,17 @@ def log_and_get_adversarial_example(model, image, label, seed):
 
 
 def main():
-    print_dataset_sample(is_train=True)
-    print_dataset_sample(is_train=False)
+    # print_dataset_sample(is_train=True)
+    # print_dataset_sample(is_train=False)
+    torch.manual_seed(seed=999)
     model = FullyConnectedModel()
     fc_trainer = Trainer(model, epochs=1, learning_scheme='SGD')
     fc_trainer.train()
     # find correctly classified image.
-    seed = 777
+    seed = 999
     image, label = get_correctly_classified_image(fc_trainer.model,
                                                   seed)
-    plt.imshow(image.reshape(IMAGE_SIZE, IMAGE_SIZE))
+    plt.imshow(image.cpu().reshape(IMAGE_SIZE, IMAGE_SIZE))
     plt.title(f'Correctly classified as {label}')
     plt.savefig(os.path.join(RESULTS_DIR, f'correctly_classified_{label}.png'))
     # find adversarial examples
@@ -277,16 +280,20 @@ def main():
     # plot all adversarial examples in one figure
     plt.figure(figsize=(15, 15))
     plt.subplot(2, 3, 1)
-    plt.imshow(image.reshape(IMAGE_SIZE, IMAGE_SIZE))
+    plt.imshow(image.cpu().reshape(IMAGE_SIZE, IMAGE_SIZE))
     plt.title(f'Original Image, label = {label}')
     for i in range(5):
         plt.subplot(2, 3, i + 1 + 1)
-        plt.imshow(adversarial_examples[i].reshape(IMAGE_SIZE, IMAGE_SIZE))
+        plt.imshow(adversarial_examples[i].cpu().reshape(IMAGE_SIZE, IMAGE_SIZE))
         pixel_index = manipulated_indices[i]
         row, col = pixel_index // IMAGE_SIZE, pixel_index % IMAGE_SIZE
         new_label = adversarial_labels[i]
-        l0 = cdist(adversarial_examples[i], image, metric='hamming').item()
-        l2 = cdist(adversarial_examples[i], image, metric='euclidean').item()
+        l0 = cdist(adversarial_examples[i].cpu(),
+                   image.cpu(),
+                   metric='hamming').item()
+        l2 = cdist(adversarial_examples[i].cpu(),
+                   image.cpu(),
+                   metric='euclidean').item()
         title = f"pixel index = ({row}, {col}), old, " \
                 f"new label =({label, new_label}), \nL0={l0:.5f}, L2={l2:.2f}"
         plt.title(title)
@@ -303,13 +310,13 @@ def main():
     another_model.eval()
     plt.figure(figsize=(15, 15))
     plt.subplot(2, 3, 1)
-    plt.imshow(image.reshape(IMAGE_SIZE, IMAGE_SIZE))
+    plt.imshow(image.cpu().reshape(IMAGE_SIZE, IMAGE_SIZE))
     plt.title(f'Original Image, label = {label}')
     for i, sample in enumerate(adversarial_examples):
         plt.subplot(2, 3, i + 1 + 1)
         output = another_model(sample)
         _, prediction = torch.max(output.data, 1)
-        plt.imshow(sample.reshape(IMAGE_SIZE, IMAGE_SIZE))
+        plt.imshow(sample.cpu().reshape(IMAGE_SIZE, IMAGE_SIZE))
         plt.title(f'Second model, label = {prediction.item()}')
     plt.savefig(os.path.join(RESULTS_DIR,
                              'adversarial_examples_in_another_model.png'))
