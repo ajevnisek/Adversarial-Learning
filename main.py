@@ -26,7 +26,6 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 
-
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 RESULTS_DIR = 'results'
@@ -44,10 +43,9 @@ class MNISTfromCSV(Dataset):
         else:
             self.dataset_path = os.path.join("dataset", TEST_SET_NAME)
         dataframe = pd.read_csv(self.dataset_path)
-        self.images = torch.from_numpy(np.reshape(dataframe.drop(
-            columns='label').values,
-                                 (dataframe.shape[0],
-                                  IMAGE_SIZE * IMAGE_SIZE)) / 255.0)
+        self.images = torch.from_numpy(
+            np.reshape(dataframe.drop(columns='label').values,
+                       (dataframe.shape[0], IMAGE_SIZE * IMAGE_SIZE)) / 255.0)
         self.labels = dataframe['label'].values
 
     def __getitem__(self, index):
@@ -67,7 +65,6 @@ def print_dataset_sample(is_train):
         plt.imshow(dataset[i]['image'].cpu().reshape(IMAGE_SIZE, IMAGE_SIZE))
         plt.title(dataset[i]['label'])
         plt.axis('off')
-    # plt.subplots_adjust(wspace=0.0, hspace=0.1)
     dataset_name = 'train' if is_train else 'test'
     plt.suptitle('MNIST ' + dataset_name)
     plt.savefig(os.path.join(RESULTS_DIR, 'MNIST_' + dataset_name + ".png"))
@@ -104,15 +101,15 @@ class Trainer:
             self.optimizer = optim.SGD(self.model.parameters(), lr=1e-2)
         else:
             self.optimizer = optim.SGD(self.model.parameters(),
-                                        lr=1e-2,)
+                                       lr=1e-2, )
         self.train_dataset = MNISTfromCSV(is_train=True)
         self.test_dataset = MNISTfromCSV(is_train=False)
         self.train_dataloader = DataLoader(self.train_dataset,
                                            batch_size=BATCH_SIZE,
                                            shuffle=True, num_workers=8)
         self.test_dataloader = DataLoader(self.test_dataset,
-                                           batch_size=BATCH_SIZE,
-                                           shuffle=True, num_workers=8)
+                                          batch_size=BATCH_SIZE,
+                                          shuffle=True, num_workers=8)
 
     def train(self):
         for epoch in range(1, self.epochs + 1):
@@ -208,12 +205,9 @@ def create_adversarial_example(model, image, true_label, seed=999):
     model.eval()
     torch.manual_seed(seed)
     pixel_to_change = int(torch.randint(IMAGE_SIZE * IMAGE_SIZE, (1,)))
-    while True:
-        if check_if_pixel_can_be_adversarial(model, image, true_label,
-                                             pixel_to_change):
-            break
-        else:
-            pixel_to_change = int(torch.randint(IMAGE_SIZE * IMAGE_SIZE, (1,)))
+    while not check_if_pixel_can_be_adversarial(model, image, true_label,
+                                                pixel_to_change):
+        pixel_to_change = int(torch.randint(IMAGE_SIZE * IMAGE_SIZE, (1,)))
     new_value, new_label = get_pixel_new_value_and_label(model,
                                                          image,
                                                          true_label,
@@ -245,17 +239,32 @@ def log_and_get_adversarial_example(model, image, label, seed):
     return adversarial_example, manipulated_pixel_index, new_value, new_label
 
 
+def exist_pixel_to_be_adversarial(model, image, true_label):
+    model.eval()
+    can_be_adversarial = []
+    for i in range(IMAGE_SIZE ** 2):
+        can_be_adversarial.append(check_if_pixel_can_be_adversarial(
+            model, image, true_label, i))
+    return torch.any(torch.tensor(can_be_adversarial)).item() == 1
+
+
 def main():
     # print_dataset_sample(is_train=True)
     # print_dataset_sample(is_train=False)
-    torch.manual_seed(seed=999)
+    torch.manual_seed(seed=888)
     model = FullyConnectedModel()
     fc_trainer = Trainer(model, epochs=1, learning_scheme='SGD')
     fc_trainer.train()
-    # find correctly classified image.
+    # find correctly classified image which can be manipulated.
     seed = 999
-    image, label = get_correctly_classified_image(fc_trainer.model,
-                                                  seed)
+    found_image_to_manipulate = False
+    while not found_image_to_manipulate:
+        seed += 1
+        image, label = get_correctly_classified_image(fc_trainer.model,
+                                                      seed)
+        found_image_to_manipulate = exist_pixel_to_be_adversarial(model,
+                                                                  image,
+                                                                  label)
     plt.imshow(image.cpu().reshape(IMAGE_SIZE, IMAGE_SIZE))
     plt.title(f'Correctly classified as {label}')
     plt.savefig(os.path.join(RESULTS_DIR, f'correctly_classified_{label}.png'))
@@ -284,7 +293,8 @@ def main():
     plt.title(f'Original Image, label = {label}')
     for i in range(5):
         plt.subplot(2, 3, i + 1 + 1)
-        plt.imshow(adversarial_examples[i].cpu().reshape(IMAGE_SIZE, IMAGE_SIZE))
+        plt.imshow(adversarial_examples[i].cpu().reshape(IMAGE_SIZE,
+                                                         IMAGE_SIZE))
         pixel_index = manipulated_indices[i]
         row, col = pixel_index // IMAGE_SIZE, pixel_index % IMAGE_SIZE
         new_label = adversarial_labels[i]
@@ -302,7 +312,9 @@ def main():
 
     # train another model
     another_model = AnotherModel()
-    another_model_trainer = Trainer(another_model, learning_scheme='Adam', epochs=1)
+    another_model_trainer = Trainer(another_model,
+                                    learning_scheme='Adam',
+                                    epochs=1)
     another_model_trainer.train()
     another_model = another_model_trainer.model
 
@@ -324,4 +336,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
