@@ -98,7 +98,7 @@ class Trainer:
         self.epochs = epochs
         self.criterion = nn.CrossEntropyLoss()
         if learning_scheme == 'Adam':
-            self.optimizer = optim.SGD(self.model.parameters(), lr=1e-2)
+            self.optimizer = optim.Adam(self.model.parameters(), lr=1e-3)
         else:
             self.optimizer = optim.SGD(self.model.parameters(),
                                        lr=1e-2, )
