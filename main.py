@@ -176,7 +176,7 @@ def get_correctly_classified_image(model, seed=999):
 
 def check_if_pixel_can_be_adversarial(model, image, true_label,
                                       pixel_to_change):
-    pixel_range = torch.range(start=0.001, end=10, step=0.001)
+    pixel_range = torch.arange(start=0.001, end=10, step=0.001)
     image_tensor = torch.cat([image] * len(pixel_range))
     image_tensor[..., pixel_to_change] = pixel_range
     with torch.no_grad():
@@ -186,7 +186,7 @@ def check_if_pixel_can_be_adversarial(model, image, true_label,
 
 
 def get_pixel_new_value_and_label(model, image, true_label, pixel_to_change):
-    pixel_range = torch.range(start=0.001, end=10, step=0.001)
+    pixel_range = torch.arange(start=0.001, end=10, step=0.001)
     image_tensor = torch.cat([image] * len(pixel_range))
     image_tensor[..., pixel_to_change] = pixel_range
     with torch.no_grad():
@@ -298,9 +298,7 @@ def main():
         pixel_index = manipulated_indices[i]
         row, col = pixel_index // IMAGE_SIZE, pixel_index % IMAGE_SIZE
         new_label = adversarial_labels[i]
-        l0 = cdist(adversarial_examples[i].cpu(),
-                   image.cpu(),
-                   metric='hamming').item()
+        l0 = 1
         l2 = cdist(adversarial_examples[i].cpu(),
                    image.cpu(),
                    metric='euclidean').item()
