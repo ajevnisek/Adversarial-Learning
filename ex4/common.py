@@ -11,3 +11,6 @@ def toCyan(content): return termcolor.colored(content, "cyan", attrs=["bold"])
 
 def toMagenta(content): return termcolor.colored(content, "magenta",
                                                  attrs=["bold"])
+
+def toGreen(content): return termcolor.colored(content, "green",
+                                               attrs=["bold"])
