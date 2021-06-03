@@ -5,7 +5,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 from tensorflow import keras
 from tensorflow.keras.losses import BinaryCrossentropy, CategoricalCrossentropy
-from common import MNIST_CLASSES, toCyan, toMagenta, RESULTS
+from common import RESULTS, MNIST_CLASSES, toCyan, toMagenta, toGreen
 from mnist_classifier import MNISTClassifierWithTemperature, \
     BinaryClassifierWithTemperature
 from distilled_networks_trainer import Distillery, MNISTTrainer, \
@@ -15,19 +15,26 @@ from attacks import AttackBenchmark, fast_gradient_sign_method, \
     plot_adversarial_images
 
 
+ATTACK_NAME_TO_ATTACK = {'FGSM attack': fast_gradient_sign_method,
+                         'Targeted FGSM attack': targeted_gradient_sign_method,
+                         'Non-targeted PGD attack': PGD_L2_non_targeted,
+                         'Targeted PGD attack': PGD_L2_targeted,
+                         }
+
 def benchmark_attack_on_training_scheme(attack,
                                         training_scheme: MNISTTrainer,
                                         is_targeted_attack: bool = False,
-                                        title: str = ''):
+                                        title: str = '',
+                                        num_of_classes=MNIST_CLASSES):
     benchmark = AttackBenchmark(training_scheme, attack)
     indices, images, labels = \
         benchmark.choose_random_samples_from_test_set()
     if is_targeted_attack:
         target = (np.argmax(labels, axis=1) +
                   np.random.randint(
-                      1, MNIST_CLASSES, size=(labels.shape[0]))) % \
-                 MNIST_CLASSES
-        target_labels = keras.utils.to_categorical(target, MNIST_CLASSES)
+                      1, num_of_classes, size=(labels.shape[0]))) % \
+                 num_of_classes
+        target_labels = keras.utils.to_categorical(target, num_of_classes)
         adversarial_images = benchmark.apply_attack(images, target_labels)
 
     else:
@@ -54,21 +61,14 @@ def evaluate_distillation_performance_for_mnist_classifier():
     classical_trainer = MNISTTrainer(simple_classifier)
     classical_trainer.initialize_dataset()
     classical_trainer.train(loss=CategoricalCrossentropy())
-    # define four types of attacks
-    attack_name_to_attack = {'FGSM attack': fast_gradient_sign_method,
-                             'Targeted FGSM attack':
-                                 targeted_gradient_sign_method,
-                             'Non-targeted PGD attack': PGD_L2_non_targeted,
-                             'Targeted PGD attack': PGD_L2_targeted,
-                             }
     # define the two learning schemes: classical and distilled
     scheme_name_to_classification_scheme = {
         'Simple Classifier': classical_trainer,
         'Distilled Student': distillery.student_trainer}
     # loop over the attacks and report performance
-    for attack_name in attack_name_to_attack:
+    for attack_name in ATTACK_NAME_TO_ATTACK:
         for scheme_name in scheme_name_to_classification_scheme:
-            attack = attack_name_to_attack[attack_name]
+            attack = ATTACK_NAME_TO_ATTACK[attack_name]
             scheme = scheme_name_to_classification_scheme[scheme_name]
             is_targeted_attack = attack_name.startswith("Targeted")
             title = f'{attack_name} on {scheme_name}'
@@ -143,6 +143,17 @@ def evaluate_distillation_performance_for_binary_classifier():
     distillery.distill(loss=BinaryCrossentropy(), epochs=5)
     # reset the student's temperature to 1 at inference time
     distillery.reset_student_temperature()
+    # loop over the attacks and report performance
+    for attack_name in ATTACK_NAME_TO_ATTACK:
+        attack = ATTACK_NAME_TO_ATTACK[attack_name]
+        scheme = distillery.student_trainer
+        is_targeted_attack = attack_name.startswith("Targeted")
+        title = f'{attack_name} on Distilled Binary Classification Student'
+        print(toGreen(title))
+        benchmark_attack_on_training_scheme(
+            attack, scheme, is_targeted_attack=is_targeted_attack,
+            title=title, num_of_classes=2)
+        print('=' * 20)
     # train a simple binary classifier
     simple_classifier = BinaryClassifierWithTemperature()
 
