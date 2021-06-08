@@ -1,0 +1,47 @@
+FGSM attack on MNIST Classifier
+Test loss: 1.87
+Successfully moved out of source class: 0.60
+Mean perturbation distance: 0.29
+====================
+Targeted FGSM attack on MNIST Classifier
+Test loss: 0.94
+Successfully moved out of source class: 0.30
+Test loss: 2.88
+Successfully perturbed to target class: 0.18
+Mean perturbation distance: 0.29
+====================
+Non-targeted PGD attack on MNIST Classifier
+Test loss: 1.21
+Successfully moved out of source class: 0.46
+Mean perturbation distance: 0.91
+====================
+Targeted PGD attack on MNIST Classifier
+Test loss: 0.95
+Successfully moved out of source class: 0.38
+Test loss: 4.36
+Successfully perturbed to target class: 0.08
+Mean perturbation distance: 0.91
+====================
+
+For FGSM attack the number of correctly classified to the original class label is: 4
+For FGSM attack the number Correctly identified by our detector is: 44.
+For FGSM attack the number of wrongly classified is: 52
+
+For Targeted FGSM attack the number of correctly classified to the original class label is: 6
+For Targeted FGSM attack the number Correctly identified by our detector is: 26.
+For Targeted FGSM attack the number of wrongly classified is: 68
+
+For Non-targeted PGD attack the number of correctly classified to the original class label is: 0
+For Non-targeted PGD attack the number Correctly identified by our detector is: 100.
+For Non-targeted PGD attack the number of wrongly classified is: 0
+
+For Targeted PGD attack the number of correctly classified to the original class label is: 0
+For Targeted PGD attack the number Correctly identified by our detector is: 100.
+For Targeted PGD attack the number of wrongly classified is: 0
+
+
+For FGSM attack the FPR is 0.94
+For Targeted FGSM attack the FPR is 0.97
+For Non-targeted PGD attack the FPR is 0.97
+For Targeted PGD attack the FPR is 0.94
+
