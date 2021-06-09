@@ -21,7 +21,7 @@ class SearchResult:
 
 
 class Searcher:
-    MAX_ITERATIONS = 50
+    MAX_ITERATIONS = 100
 
     def __init__(self, generator, epsilon, learning_rate=1e-1):
         self.generator = generator
@@ -32,14 +32,26 @@ class Searcher:
         z = tf.convert_to_tensor(np.random.normal(0, 1, size=[1, RANDOM_DIM]))
         x_hat = self.generator.predict(z)
         l2_distance = tf.norm(x_hat - x)
-        # l2_distances = [l2_distance.numpy()]
+        l2_distances = [l2_distance.numpy()]
         iterations = 0
         while (l2_distance > self.epsilon) and (iterations <
                                                 self.MAX_ITERATIONS):
-            z = self.perform_gradient_step(x, z)
+            # z = self.perform_gradient_step(x, z)
+            z = self.perform_gradient_step_with_optimizer(x, z)
             l2_distance = self.compute_l2_distance(x, z)
             iterations += 1
-            # l2_distances.append(l2_distance.numpy())
+            l2_distances.append(l2_distance.numpy())
+
+        # import matplotlib.pyplot as plt
+        # plt.plot(l2_distances)
+        # plt.show()
+        # plt.subplot(1, 2, 1)
+        # plt.imshow(x[0][..., 0])
+        # plt.subplot(1, 2, 2)
+        # x_hat = self.generator.predict(z)
+        # plt.imshow(x_hat[0][..., 0])
+        # plt.show()
+
         # import matplotlib.pyplot as plt
         # plt.plot(l2_distances)
         # plt.show()
@@ -66,4 +78,14 @@ class Searcher:
         z_new = z - self.learning_rate * d_l2_distance_dz
         return z_new
 
+    def perform_gradient_step_with_optimizer(self, x, z):
+        z_new = tf.Variable(z)
+        opt = tf.keras.optimizers.Adam(learning_rate=self.learning_rate)
+
+        def loss_callback():
+            x_hat = self.generator(z_new)
+            return tf.keras.losses.MSE(x_hat, x)
+        loss = loss_callback
+        opt.minimize(loss, var_list=[z_new])
+        return tf.convert_to_tensor(z_new.numpy())
 
